@@ -26,7 +26,7 @@ import random
 import time
 import fine_tuning_utils
 import modeling
-import squad_utils
+import vimrc_utils
 import tokenization
 import six
 import tensorflow.compat.v1 as tf
@@ -286,7 +286,7 @@ def main(_):
   num_train_steps = None
   num_warmup_steps = None
   if FLAGS.do_train:
-    train_examples = squad_utils.read_squad_examples(
+    train_examples = vimrc_utils.read_squad_examples(
         input_file=FLAGS.train_file, is_training=True)
     num_train_steps = int(
         len(train_examples) / FLAGS.train_batch_size * FLAGS.num_train_epochs)
@@ -297,7 +297,7 @@ def main(_):
     rng = random.Random(12345)
     rng.shuffle(train_examples)
 
-  model_fn = squad_utils.v1_model_fn_builder(
+  model_fn = vimrc_utils.v1_model_fn_builder(
       albert_config=albert_config,
       init_checkpoint=FLAGS.init_checkpoint,
       learning_rate=FLAGS.learning_rate,
@@ -322,9 +322,9 @@ def main(_):
     # in memory.
 
     if not tf.gfile.Exists(FLAGS.train_feature_file):
-      train_writer = squad_utils.FeatureWriter(
+      train_writer = vimrc_utils.FeatureWriter(
           filename=os.path.join(FLAGS.train_feature_file), is_training=True)
-      squad_utils.convert_examples_to_features(
+      vimrc_utils.convert_examples_to_features(
           examples=train_examples,
           tokenizer=tokenizer,
           max_seq_length=FLAGS.max_seq_length,
@@ -342,7 +342,7 @@ def main(_):
     tf.logging.info("  Num steps = %d", num_train_steps)
     del train_examples
 
-    train_input_fn = squad_utils.input_fn_builder(
+    train_input_fn = vimrc_utils.input_fn_builder(
         input_file=FLAGS.train_feature_file,
         seq_length=FLAGS.max_seq_length,
         is_training=True,
@@ -356,7 +356,7 @@ def main(_):
     with tf.gfile.Open(FLAGS.predict_file) as predict_file:
       prediction_json = json.load(predict_file)["data"]
 
-    eval_examples = squad_utils.read_squad_examples(
+    eval_examples = vimrc_utils.read_squad_examples(
         input_file=FLAGS.predict_file, is_training=False)
 
     if (tf.gfile.Exists(FLAGS.predict_feature_file) and tf.gfile.Exists(
@@ -366,7 +366,7 @@ def main(_):
       with tf.gfile.Open(FLAGS.predict_feature_left_file, "rb") as fin:
         eval_features = pickle.load(fin)
     else:
-      eval_writer = squad_utils.FeatureWriter(
+      eval_writer = vimrc_utils.FeatureWriter(
           filename=FLAGS.predict_feature_file, is_training=False)
       eval_features = []
 
@@ -374,7 +374,7 @@ def main(_):
         eval_features.append(feature)
         eval_writer.process_feature(feature)
 
-      squad_utils.convert_examples_to_features(
+      vimrc_utils.convert_examples_to_features(
           examples=eval_examples,
           tokenizer=tokenizer,
           max_seq_length=FLAGS.max_seq_length,
@@ -393,7 +393,7 @@ def main(_):
     tf.logging.info("  Num split examples = %d", len(eval_features))
     tf.logging.info("  Batch size = %d", FLAGS.predict_batch_size)
 
-    predict_input_fn = squad_utils.input_fn_builder(
+    predict_input_fn = vimrc_utils.input_fn_builder(
         input_file=FLAGS.predict_feature_file,
         seq_length=FLAGS.max_seq_length,
         is_training=False,
@@ -418,7 +418,7 @@ def main(_):
         start_log_prob = [float(x) for x in result["start_log_prob"].flat]
         end_log_prob = [float(x) for x in result["end_log_prob"].flat]
         all_results.append(
-            squad_utils.RawResult(
+            vimrc_utils.RawResult(
                 unique_id=unique_id,
                 start_log_prob=start_log_prob,
                 end_log_prob=end_log_prob))
@@ -429,15 +429,15 @@ def main(_):
           FLAGS.output_dir, "nbest_predictions.json")
 
       result_dict = {}
-      squad_utils.accumulate_predictions_v1(
+      vimrc_utils.accumulate_predictions_v1(
           result_dict, eval_examples, eval_features,
           all_results, FLAGS.n_best_size, FLAGS.max_answer_length)
-      predictions = squad_utils.write_predictions_v1(
+      predictions = vimrc_utils.write_predictions_v1(
           result_dict, eval_examples, eval_features, all_results,
           FLAGS.n_best_size, FLAGS.max_answer_length,
           output_prediction_file, output_nbest_file)
 
-      return squad_utils.evaluate_v1(
+      return vimrc_utils.evaluate_v1(
           prediction_json, predictions), int(global_step)
 
     def _find_valid_cands(curr_step):
